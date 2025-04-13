@@ -1,0 +1,8 @@
+.qodo
+session-*
+*.session
+.env
+.DS_Store
+__pycache__/
+downloads/
+bot.log
