@@ -6,3 +6,4 @@ session-*
 __pycache__/
 downloads/
 bot.log
+cookies.txt

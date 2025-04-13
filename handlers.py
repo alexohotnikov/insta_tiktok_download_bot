@@ -1,99 +1,78 @@
-from aiogram import types, Router, F
-import requests
-import instaloader
-import os
-from config import SAVEIG_API, INSTAGRAM_SESSION_USERNAME, INSTAGRAM_SESSION_FILE, BOT_LINK
 import logging
-from tiktok_downloader import snaptik
+import os
+import re
+from aiogram import Router, F
+from aiogram.types import Message
+from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from dotenv import load_dotenv
+from .utils.downloader import InstagramDownloader, TikTokDownloader
+from .config import load_config
 
+load_dotenv()
 
-logging.basicConfig(level=logging.INFO)
-
+config = load_config()
 router = Router()
 
-loader = instaloader.Instaloader(dirname_pattern='downloads', filename_pattern='reels')
+class DownloadState(StatesGroup):
+    waiting_for_url = State()
 
-loader.load_session_from_file(INSTAGRAM_SESSION_USERNAME, INSTAGRAM_SESSION_FILE)
+@router.message(Command("start"))
+async def cmd_start(message: Message):
+    await message.answer(
+        "Привет! Я бот для скачивания видео из Instagram и TikTok. "
+        "Просто отправь мне ссылку на видео, и я скачаю его для тебя."
+    )
 
-@router.message(F.text == "/start")
-async def start_command(message: types.Message):
-    logging.info(f"User {message.from_user.id} started the bot.")
-    await message.answer("Привет! 👋\nОтправь мне ссылку на Instagram Reels или TikTok, и я скачаю его для тебя.")
+@router.message(Command("help"))
+async def cmd_help(message: Message):
+    await message.answer(
+        "Как использовать бота:\n\n"
+        "1. Отправь мне ссылку на видео из Instagram или TikTok\n"
+        "2. Я скачаю видео и отправлю его тебе\n\n"
+        "Поддерживаемые форматы:\n"
+        "- Instagram Reels\n"
+        "- TikTok видео"
+    )
 
-@router.message(F.text.contains("instagram.com/reel/"))
-async def handle_reels(message: types.Message):
+@router.message(F.text)
+async def handle_url(message: Message):
     url = message.text.strip()
-    logging.info(f"User {message.from_user.id} sent reels link: {url}")
-    await message.delete()
-    status_msg = await message.answer("⚡️")
-
-    try:
-        logging.info("Starting Instaloader to download the reel...")
-        import re
-        shortcode_match = re.search(r"instagram\.com/reel/([^/?#&]+)", url)
-        shortcode = shortcode_match.group(1) if shortcode_match else None
-        logging.info(f"Shortcode: {shortcode}")
-        post = instaloader.Post.from_shortcode(loader.context, shortcode)
-        target_folder = f"downloads/reels_{shortcode}"
-        filename_pattern = f"reels_{shortcode}_{message.from_user.id}"
-        loader.dirname_pattern = target_folder
-        loader.filename_pattern = filename_pattern
-        loader.download_post(post, target=target_folder)
-        logging.info("Download completed using Instaloader.")
-
-        video_path = None
-        for root, dirs, files in os.walk(target_folder):
-            for file in files:
-                if file.endswith('.mp4'):
-                    video_path = os.path.join(root, file)
-                    break
-
-        if not video_path:
-            raise Exception("Video file not found")
-
-        await status_msg.delete()
-        caption = f"🎥 Вот ваше видео 🍿\n\n<a href=\"{BOT_LINK}\">@{BOT_LINK.split('/')[-1]}</a> | <a href=\"{url}\">Original Media</a>"
-        await message.answer_video(types.FSInputFile(video_path), caption=caption, parse_mode="HTML")
-        logging.info(f"Deleting video file: {video_path}")
-        os.remove(video_path)
-
-    except Exception as e:
-        logging.error(f"Error downloading reels: {e}")
-        await status_msg.delete()
-        await message.answer("❌ Не удалось скачать видео.\nПопробуй другую ссылку.")
-
-@router.message(F.text.contains("tiktok.com/"))
-async def handle_tiktok(message: types.Message):
-    url = message.text.strip()
-    logging.info(f"User {message.from_user.id} sent TikTok link: {url}")
-    await message.delete()
-    status_msg = await message.answer("⚡️")
-
-    try:
-        logging.info("Starting TikTok download...")
-        video = snaptik(url)
-        video[0].download(f"downloads/tiktok_{message.from_user.id}.mp4")
-        logging.info("Download completed")
-
-        video_path = f"downloads/tiktok_{message.from_user.id}.mp4"
-        if not os.path.exists(video_path):
-            raise Exception("Video file not found")
-
-        await status_msg.delete()
-        caption = f"🎥 Вот ваше видео 🍿\n\n<a href=\"{BOT_LINK}\">@{BOT_LINK.split('/')[-1]}</a> | <a href=\"{url}\">Original Media</a>"
-        await message.answer_video(types.FSInputFile(video_path), caption=caption, parse_mode="HTML")
-        logging.info(f"Deleting video file: {video_path}")
-        os.remove(video_path)
-
-    except Exception as e:
-        logging.error(f"Error downloading TikTok: {e}")
-        await status_msg.delete()
-        await message.answer("❌ Не удалось скачать видео.\nПопробуй другую ссылку.")
-
-@router.message()
-async def invalid_message(message: types.Message):
-    logging.info(f"User {message.from_user.id} sent invalid message: {message.text}")
-    await message.answer("⚠️ Отправь, пожалуйста, ссылку на Instagram Reels или TikTok.")
+    
+    # Проверяем, является ли ссылка Instagram Reels
+    if "instagram.com/reel/" in url:
+        logging.info("Instagram Reels URL detected")
+        instagram_downloader = InstagramDownloader(
+            config.instagram.session_username,
+            config.instagram.session_file,
+            config.instagram.cookies_file
+        )
+        video_path = instagram_downloader.download_reel(url, message.from_user.id)
+        
+        if video_path:
+            with open(video_path, 'rb') as video:
+                await message.answer_video(video)
+            os.remove(video_path)
+        else:
+            await message.answer("Не удалось скачать видео. Пожалуйста, проверьте ссылку и попробуйте снова.")
+    
+    # Проверяем, является ли ссылка TikTok
+    elif "tiktok.com" in url:
+        logging.info("TikTok URL detected")
+        video_path = TikTokDownloader.download_video(url, message.from_user.id)
+        
+        if video_path:
+            with open(video_path, 'rb') as video:
+                await message.answer_video(video)
+            os.remove(video_path)
+        else:
+            await message.answer("Не удалось скачать видео. Пожалуйста, проверьте ссылку и попробуйте снова.")
+    
+    else:
+        await message.answer(
+            "Пожалуйста, отправьте корректную ссылку на видео из Instagram Reels или TikTok."
+        )
 
 def register_handlers(dp):
     dp.include_router(router)

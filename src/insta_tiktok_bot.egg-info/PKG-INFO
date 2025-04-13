@@ -1,0 +1,101 @@
+Metadata-Version: 2.4
+Name: insta_tiktok_bot
+Version: 0.1.0
+Summary: A Telegram bot for downloading content from Instagram and TikTok
+Home-page: https://github.com/alexohotnikov/insta_tiktok_download_bot
+Author: Aleksandr O.
+Author-email: aleksohotnikov@gmail.com
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: aiogram>=3.0.0
+Requires-Dist: python-dotenv>=0.19.0
+Requires-Dist: requests>=2.26.0
+Requires-Dist: instaloader>=4.9.0
+Requires-Dist: tiktok-downloader>=0.2.0
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+# Бот для скачивания контента из Instagram и TikTok
+
+Telegram бот, который позволяет скачивать контент из Instagram и TikTok.
+
+## Возможности
+
+- Скачивание постов из Instagram (фото и видео)
+- Скачивание видео из TikTok
+- Простой и удобный интерфейс
+- Автоматическое сохранение контента в локальное хранилище
+
+## Требования
+
+- Python 3.7 или выше
+- Токен Telegram бота (получить у [@BotFather](https://t.me/BotFather))
+- Файл сессии Instagram (для авторизации)
+
+## Установка
+
+1. Клонируйте репозиторий:
+```bash
+git clone https://github.com/alexohotnikov/insta_tiktok_download_bot.git
+cd insta_tiktok_download_bot
+```
+
+2. Установите необходимые зависимости:
+```bash
+pip install -r requirements.txt
+```
+
+3. Создайте файл `.env` в корневой директории проекта и добавьте конфигурацию:
+```
+BOT_TOKEN=ваш_токен_телеграм_бота
+INSTAGRAM_SESSION_USERNAME=имя_пользователя_instagram
+INSTAGRAM_SESSION_FILE=имя_файла_сессии
+```
+
+## Использование
+
+1. Запустите бота:
+```bash
+python main.py
+```
+
+2. Откройте Telegram и найдите вашего бота
+3. Отправьте ссылку на пост из Instagram или видео из TikTok
+4. Бот скачает контент и отправит его вам
+
+## Структура проекта
+
+- `main.py` - Основной файл бота
+- `handlers.py` - Обработчики сообщений и логика скачивания
+- `config.py` - Настройки конфигурации
+- `requirements.txt` - Зависимости проекта
+- `downloads/` - Директория для хранения скачанного контента
+- `.env` - Файл с конфигурацией и секретными данными
+
+## Зависимости
+
+- aiogram - Фреймворк для Telegram Bot API
+- python-dotenv - Управление переменными окружения
+- requests - HTTP запросы
+- instaloader - Скачивание контента из Instagram
+- tiktok-downloader - Скачивание контента из TikTok
+
+## Лицензия
+
+Этот проект распространяется под лицензией MIT - подробности в файле LICENSE.
+
+## Участие в проекте
+
+Приветствуются предложения по улучшению и сообщения об ошибках! 
