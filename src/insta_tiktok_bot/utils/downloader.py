@@ -186,7 +186,7 @@ class InstagramDownloader:
             except Exception as e:
                 logger.error(f"Error cleaning up temp files: {str(e)}")
 
-    def download_post_with_instaloader(self, post_url: str, user_id: int) -> Optional[str]:
+    def download_post_with_instaloader(self, post_url: str, user_id: int) -> Optional[dict]:
         try:
             logger.info(f"Starting download for Instagram post URL: {post_url}")
             
@@ -206,7 +206,10 @@ class InstagramDownloader:
                 post = Post.from_shortcode(loader.context, shortcode)
                 loader.download_post(post, target=f"instagram_post_{user_id}")
                 logger.info(f"Post downloaded successfully to: {temp_dir}")
-                return temp_dir
+                return {
+                    'path': temp_dir,
+                    'caption': post.caption if post.caption else None
+                }
             except Exception as e:
                 logger.error(f"Error during post download with instaloader: {str(e)}")
                 return None

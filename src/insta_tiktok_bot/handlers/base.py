@@ -52,8 +52,10 @@ async def handle_url(message: Message, url: str) -> Optional[List[dict]]:
                 await message.answer("Ошибка: не удалось инициализировать загрузчик Instagram")
                 return None
             # Use download_post_with_instaloader for specific post download
-            post_path = instagram_downloader.download_post_with_instaloader(url, message.from_user.id)
-            return [{'type': 'post', 'path': post_path}] if post_path else None
+            post_data = instagram_downloader.download_post_with_instaloader(url, message.from_user.id)
+            if post_data:
+                return [{'type': 'post', 'path': post_data['path'], 'caption': post_data.get('caption')}]
+            return None
         elif re.match(TIKTOK_PATTERN, url):
             video_path = TikTokDownloader.download_video(url, message.from_user.id)
             return [{'type': 'video', 'path': video_path}] if video_path else None
@@ -157,6 +159,7 @@ async def handle_message(message: Message, state: FSMContext):
                         await message.answer(f"Ошибка при удалении видеофайла: {str(e)}")
                 elif result['type'] == 'post':
                     post_path = result['path']
+                    post_caption = result.get('caption')
                     # Collect all photo paths
                     photo_paths = []
                     for root, _, files in os.walk(post_path):
@@ -167,7 +170,7 @@ async def handle_message(message: Message, state: FSMContext):
 
                     # Create media group
                     media_group = []
-                    for photo_path in photo_paths:
+                    for i, photo_path in enumerate(photo_paths):
                         try:
                             # Verify file existence and log file size
                             if not os.path.exists(photo_path):
@@ -186,8 +189,12 @@ async def handle_message(message: Message, state: FSMContext):
 
                             logging.info(f"Adding file to media group: {photo_path}")
 
-                            # Add to media group
-                            media_group.append(InputMediaPhoto(media=FSInputFile(photo_path)))
+                            # Add to media group with caption only for the first photo
+                            if i == 0 and post_caption:
+                                caption = f"{post_caption}\n\n<a href='{url}'>🔗 Оригинал в Instagram</a>"
+                                media_group.append(InputMediaPhoto(media=FSInputFile(photo_path), caption=caption, parse_mode="HTML"))
+                            else:
+                                media_group.append(InputMediaPhoto(media=FSInputFile(photo_path)))
                         except Exception as e:
                             logging.error(f"Error preparing photo for media group: {str(e)}")
                             await message.answer(f"Произошла ошибка при подготовке фото: {str(e)}")
@@ -206,7 +213,26 @@ async def handle_message(message: Message, state: FSMContext):
             # Удаляем временные файлы
             for result in download_results:
                 try:
-                    os.remove(result['path'])
+                    if result['type'] == 'post':
+                        # For posts, we need to remove all files in the directory first
+                        post_path = result['path']
+                        if os.path.exists(post_path):
+                            for root, _, files in os.walk(post_path):
+                                for file in files:
+                                    file_path = os.path.join(root, file)
+                                    try:
+                                        os.remove(file_path)
+                                    except Exception as e:
+                                        logging.error(f"Error deleting file {file_path}: {str(e)}")
+                            # Remove the directory itself
+                            try:
+                                os.rmdir(post_path)
+                            except Exception as e:
+                                logging.error(f"Error removing directory {post_path}: {str(e)}")
+                    else:
+                        # For videos, just remove the file
+                        if os.path.exists(result['path']):
+                            os.remove(result['path'])
                 except Exception as e:
                     logging.error(f"Error deleting file: {str(e)}")
             
