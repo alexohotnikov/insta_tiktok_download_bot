@@ -34,11 +34,7 @@ jobs:
         
     - name: Run tests with pytest
       env:
-        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         BOT_LINK: "https://t.me/test_bot"
-        INSTAGRAM_SESSION_USERNAME: "test_user"
-        INSTAGRAM_SESSION_FILE: "test_session"
-        INSTAGRAM_COOKIES_FILE: "test_cookies.txt"
         NEED_PASSWORD_CHECK: "false"
         BOT_VERSION: "0.3.0"
       run: |
