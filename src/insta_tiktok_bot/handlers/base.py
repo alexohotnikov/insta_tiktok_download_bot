@@ -4,15 +4,21 @@ Base handlers module for the bot.
 import logging
 import os
 import re
+import random
 from aiogram import Router, F, Bot
-from aiogram.types import Message, FSInputFile, InputMediaPhoto
+from aiogram.types import Message, FSInputFile, InputMediaPhoto, InlineQuery, InlineQueryResultGif
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from dotenv import load_dotenv
 from src.insta_tiktok_bot.utils.downloader import InstagramDownloader, TikTokDownloader
 from src.insta_tiktok_bot.config import load_config
+from src.insta_tiktok_bot.utils.gifs import PROCESSING_GIFS
 from typing import Optional, List
+import aiohttp
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -37,6 +43,7 @@ try:
 except FileNotFoundError as e:
     logging.error(f"Failed to initialize InstagramDownloader: {e}")
     instagram_downloader = None
+
 
 async def handle_url(message: Message, url: str) -> Optional[List[dict]]:
     """Обработка URL и скачивание медиа"""
@@ -92,10 +99,7 @@ async def process_answer(message: Message, state: FSMContext):
         changelog = (
             f"📝 Версия {config.bot.version}\n\n"
             "Последние обновления:\n"
-            "• Добавлена поддержка потокового воспроизведения видео\n"
-            "• Улучшена обработка ошибок\n"
-            "• Оптимизирована работа с медиафайлами\n"
-            "• Поддержка видео TikTok\n"
+            "• Новая нотификация при скачивании видео\n"
         )
         await message.answer(changelog)
         
@@ -136,8 +140,12 @@ async def handle_message(message: Message, state: FSMContext, bot: Bot):
         # Удаляем сообщение с URL
         await message.delete()
         
-        # Отправляем эмодзи молнии и сохраняем сообщение
-        loading_msg = await message.answer("⚡️")
+        # Отправляем случайный GIF процесса и сохраняем сообщение
+        random_gif = random.choice(PROCESSING_GIFS)
+        loading_msg = await message.answer_animation(
+            animation=random_gif["url"],
+            caption="Загружаю..."
+        )
         
         # Скачиваем видео
         download_results = await handle_url(message, url)
@@ -256,7 +264,7 @@ async def handle_message(message: Message, state: FSMContext, bot: Bot):
                 except Exception as e:
                     logging.error(f"Error deleting file: {str(e)}")
             
-            # Удаляем сообщение с молнией
+            # Удаляем сообщение с GIF процесса
             try:
                 await loading_msg.delete()
             except Exception as e:
@@ -264,4 +272,22 @@ async def handle_message(message: Message, state: FSMContext, bot: Bot):
                 
     except Exception as e:
         logging.error(f"Error in message handler: {str(e)}")
-        await message.answer(f"Произошла ошибка: {str(e)}") 
+        await message.answer(f"Произошла ошибка: {str(e)}")
+
+@router.inline_query()
+async def process_gif_query(inline_query: InlineQuery):
+    """Обработчик inline запросов для поиска GIF."""
+    query = inline_query.query.lower()
+    
+    if "processing" in query:
+        await inline_query.answer(
+            [
+                InlineQueryResultGif(
+                    id=gif["id"],
+                    gif_url=gif["url"],
+                    thumb_url=gif["thumb"]
+                )
+                for gif in PROCESSING_GIFS
+            ],
+            cache_time=300
+        ) 

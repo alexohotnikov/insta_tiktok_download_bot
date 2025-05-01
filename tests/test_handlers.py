@@ -12,7 +12,6 @@ def message():
     message = AsyncMock(spec=Message)
     message.from_user = AsyncMock(spec=User)
     message.from_user.id = 12345
-    message.text = "2в"
     return message
 
 @pytest.fixture
