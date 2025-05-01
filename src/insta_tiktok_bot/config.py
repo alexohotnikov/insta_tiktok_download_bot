@@ -13,6 +13,8 @@ class BotConfig:
     """Bot configuration settings."""
     token: str
     link: str
+    need_password_check: bool = False
+    version: str = "0.3.0"
 
 @dataclass
 class InstagramConfig:
@@ -43,12 +45,19 @@ def load_config() -> Config:
     instagram_username = os.getenv("INSTAGRAM_SESSION_USERNAME")
     instagram_session_file = os.getenv("INSTAGRAM_SESSION_FILE")
     instagram_cookies = os.getenv("INSTAGRAM_COOKIES_FILE")
+    need_password_check = os.getenv("NEED_PASSWORD_CHECK", "false").lower() == "true"
+    bot_version = os.getenv("BOT_VERSION", "1.0.0")
 
     if not all([bot_token, bot_link, instagram_username, instagram_session_file]):
         raise ValueError("Missing required environment variables")
 
     return Config(
-        bot=BotConfig(token=bot_token, link=bot_link),
+        bot=BotConfig(
+            token=bot_token, 
+            link=bot_link, 
+            need_password_check=need_password_check,
+            version=bot_version
+        ),
         instagram=InstagramConfig(
             session_username=instagram_username,
             session_file=instagram_session_file,

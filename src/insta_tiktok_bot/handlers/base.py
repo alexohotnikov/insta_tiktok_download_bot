@@ -4,20 +4,21 @@ Base handlers module for the bot.
 import logging
 import os
 import re
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.types import Message, FSInputFile, InputMediaPhoto
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from dotenv import load_dotenv
-from ..utils.downloader import InstagramDownloader, TikTokDownloader
-from ..config import load_config
+from src.insta_tiktok_bot.utils.downloader import InstagramDownloader, TikTokDownloader
+from src.insta_tiktok_bot.config import load_config
 from typing import Optional, List
 
 load_dotenv()
 
 config = load_config()
 router = Router()
+bot = Bot(token=config.bot.token)
 
 class DownloadState(StatesGroup):
     waiting_for_url = State()
@@ -86,6 +87,18 @@ async def process_answer(message: Message, state: FSMContext):
     if answer == "2в":  # Compare with lowercase correct answer
         await state.update_data(passed_security_check=True)
         await message.answer("Ответ верный! Теперь вы можете использовать бота.")
+        
+        # Show changelog
+        changelog = (
+            f"📝 Версия {config.bot.version}\n\n"
+            "Последние обновления:\n"
+            "• Добавлена поддержка потокового воспроизведения видео\n"
+            "• Улучшена обработка ошибок\n"
+            "• Оптимизирована работа с медиафайлами\n"
+            "• Поддержка видео TikTok\n"
+        )
+        await message.answer(changelog)
+        
         # Do not clear the state completely, just reset the current state
         await state.set_state(None)
     else:
@@ -102,14 +115,15 @@ async def cmd_help(message: Message):
         "- TikTok видео"
     )
 
-@router.message(F.text)
-async def handle_message(message: Message, state: FSMContext):
-    """Обработчик текстовых сообщений"""
-    # Check if user has passed the security check
-    user_data = await state.get_data()
-    if not user_data.get('passed_security_check', False):
-        await message.answer("Вы должны ответить на вопрос безопасности, чтобы использовать бота.\nВведите /start чтобы начать")
-        return
+@router.message()
+async def handle_message(message: Message, state: FSMContext, bot: Bot):
+    """Обработчик всех сообщений"""
+    # Check if password check is required and user hasn't passed it
+    if config.bot.need_password_check:
+        user_data = await state.get_data()
+        if not user_data.get('passed_security_check', False):
+            await message.answer("Вы должны ответить на вопрос безопасности, чтобы использовать бота.\nВведите /start чтобы начать")
+            return
 
     url = message.text.strip()
     
@@ -142,11 +156,17 @@ async def handle_message(message: Message, state: FSMContext):
                         continue
 
                     try:
-                        # Send video with caption
+                        # Send video with caption and streaming support
                         video = FSInputFile(video_path)
                         platform = "Insta" if "instagram.com" in url else "ТикТок"
                         caption = f"🎬 Приятного просмотра!\n\n<a href='{url}'>🔗 Оригинал на {platform}</a>"
-                        await message.answer_video(video, caption=caption, parse_mode="HTML")
+                        await bot.send_video(
+                            message.chat.id, 
+                            video, 
+                            caption=caption, 
+                            parse_mode="HTML",
+                            supports_streaming=True
+                        )
                     except Exception as e:
                         logging.error(f"Error sending video: {str(e)}")
                         await message.answer(f"Произошла ошибка при отправке видео: {str(e)}")
