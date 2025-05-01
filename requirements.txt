@@ -3,3 +3,5 @@ python-dotenv>=0.19.0
 requests>=2.26.0
 gallery-dl>=1.25.0
 tiktok-downloader>=0.2.0
+yt-dlp>=2023.12.30
+instaloader>=4.10.0

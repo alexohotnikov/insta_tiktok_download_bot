@@ -29,6 +29,15 @@ def test_instagram_config():
     assert config.session_file == "test_session.txt"
     assert config.cookies_file == "test_cookies.txt"
 
+@pytest.fixture(autouse=True)
+def clean_env():
+    """Clean environment variables before each test."""
+    old_env = dict(os.environ)
+    os.environ.clear()
+    yield
+    os.environ.clear()
+    os.environ.update(old_env)
+
 def test_config_load_error():
     """Test config loading with missing environment variables."""
     with pytest.raises(ValueError):
